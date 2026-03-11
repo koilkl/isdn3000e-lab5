@@ -122,11 +122,11 @@ void task2() {
     //  Hint: your can change the numbers of R and T_goal to obtain the correct frame
     Eigen::Matrix3d R =
         (Eigen::AngleAxisd(M_PI / 2.0, Eigen::Vector3d::UnitZ()) *
-         Eigen::AngleAxisd(M_PI / 2.0, Eigen::Vector3d::UnitY())).toRotationMatrix();
+         Eigen::AngleAxisd(M_PI / 6.0, Eigen::Vector3d::UnitY())).toRotationMatrix();
     T_goal <<
-        R(0,0), R(0,1), R(0,2), 0.20,
-        R(1,0), R(1,1), R(1,2), 0.20,
-        R(2,0), R(2,1), R(2,2), 0.20,
+        R(0,0), -R(0,1), -R(0,2), 0.55,
+        R(1,0), -R(1,1), -R(1,2), 0.20,
+        R(2,0), -R(2,1), -R(2,2), 0.60,
         0.0,    0.0,    0.0,    1.0;
     pinocchio::SE3 M_goal(
         T_goal.block<3,3>(0,0),
@@ -175,6 +175,20 @@ void task2() {
     //   4. Compute the frame Jacobian
     //   5. Solve a damped least-squares update
     //   6. Integrate the update into q_try
+    for (int it = 0; it < max_iters; ++it) {
+    pinocchio::framesForwardKinematics(model, data, q_try);
+    pinocchio::SE3 M_ee = data.oMf[ee_fid];
+    pinocchio::SE3 M_err = M_ee.inverse() * M_goal;
+    Eigen::Matrix<double, 6, 1> err = pinocchio::log6(M_err).toVector();
+    if (err.norm() < eps) {ik_success = true; q_goal = q_try; break;}
+    Eigen::MatrixXd J(6, model.nv);
+    pinocchio::computeFrameJacobian(model, data, q_try, ee_fid, pinocchio::LOCAL, J);
+    Eigen::Matrix<double, 6, 6> I = Eigen::Matrix<double, 6, 6>::Identity();
+    Eigen::VectorXd dq = J.transpose() * (J * J.transpose() + damping * I).ldlt().solve(err);
+    q_try = pinocchio::integrate(model, q_try, alpha * dq);
+    if (finger1_q >= 0) q_try[finger1_q] = q_start[finger1_q];
+    if (finger2_q >= 0) q_try[finger2_q] = q_start[finger2_q];
+    }
 
 
 
@@ -193,7 +207,7 @@ void task2() {
             //    when s = 0, q should equal q_start
             //    when s = 1, q should equal q_goal
             //  So we linearly interpolate joints between q_start and q_goal via (1.0 - s) * q_start + s * q_goal
-
+            q = (1.0 - s) * q_start + s * q_goal;
 
         } else {
             q = q_start;

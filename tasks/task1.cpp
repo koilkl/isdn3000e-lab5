@@ -80,7 +80,22 @@ void task1() {
     //      - set color to three axis directions: X = red, Y = green, Z = blue
     //      - set each direction vector radius to 0.1 and vector length scale to 0.1 to better visualize them
     //      - set three axis vectors enabled
-
+    auto *ps_cloud = polyscope::registerPointCloud("ee_origin", ee_point);
+    auto *x_q = ps_cloud->addVectorQuantity("x_axis", ee_x);
+    auto *y_q = ps_cloud->addVectorQuantity("y_axis", ee_y);
+    auto *z_q = ps_cloud->addVectorQuantity("z_axis", ee_z);
+    x_q->setVectorColor({1.0, 0.0, 0.0});
+    y_q->setVectorColor({0.0, 1.0, 0.0});
+    z_q->setVectorColor({0.0, 0.0, 1.0});
+    x_q->setVectorRadius(0.1);
+    y_q->setVectorRadius(0.1);
+    z_q->setVectorRadius(0.1);
+    x_q->setVectorLengthScale(0.1);
+    y_q->setVectorLengthScale(0.1);
+    z_q->setVectorLengthScale(0.1);
+    x_q->setEnabled(true);
+    y_q->setEnabled(true);
+    z_q->setEnabled(true);
 
 
 
@@ -114,7 +129,11 @@ void task1() {
         ee_z[0] = axis_len * R.col(2);
 
         // TODO 2: Update the frame while callback, particularly, update the ps_cloud and three axis vector x_q, y_q and z_q
-
+        ps_cloud->updatePointPositions(ee_point);
+        x_q->updateData(ee_x);
+        y_q->updateData(ee_y);
+        z_q->updateData(ee_z);
+        
 
     };
 

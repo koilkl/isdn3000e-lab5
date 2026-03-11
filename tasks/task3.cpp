@@ -15,10 +15,6 @@
 #include <pinocchio/spatial/explog.hpp>
 #include "imgui.h"
 
-
-
-
-
 void task3() {
 
     polyscope::init();
@@ -43,7 +39,6 @@ void task3() {
     // Gripper Control
     int finger1_q = model.joints[model.getJointId("fr3_finger_joint1")].idx_q();
     int finger2_q = model.joints[model.getJointId("fr3_finger_joint2")].idx_q();
-
 
     // Visualize the robot of the initial pose
     for (int i = 0; i < geom_model.geometryObjects.size(); ++i) {
@@ -107,7 +102,6 @@ void task3() {
         v = {p.x(), p.y(), p.z()};
     }
     auto* wall = polyscope::registerSurfaceMesh("obstacle_wall", wallV, wallF);
-
 
     // Define the start frame of robot end effector
     double axis_len = 0.20;
@@ -201,38 +195,48 @@ void task3() {
     };
 
     std::vector<Eigen::Matrix4d> T_waypoints;
-    // TODO: Revise the following three waypoint frames T_waypoint1, T_waypoint2, and T_goal so that the end-effector
-    //  follows a multi-frame path to catch the cube without colliding with the obstacle wall.
-    //  You can add more waypoint frames if you want.
-    Eigen::Matrix3d R_waypoint1 =
-        (Eigen::AngleAxisd(M_PI, Eigen::Vector3d::UnitZ()) *
-         Eigen::AngleAxisd(M_PI, Eigen::Vector3d::UnitX())).toRotationMatrix();
+    // -------------------------- Modified Waypoints --------------------------
+    // Waypoint 1: Initial safe position (left of obstacle, avoid x=0.40~0.44)
+    // Position: (0.30, 0.0, 0.70) | Rotation: Match cube's orientation
     Eigen::Matrix4d T_waypoint1;
     T_waypoint1 <<
-        R_waypoint1(0,0), R_waypoint1(0,1), R_waypoint1(0,2), 0.1,
-        R_waypoint1(1,0), R_waypoint1(1,1), R_waypoint1(1,2), 0.1,
-        R_waypoint1(2,0), R_waypoint1(2,1), R_waypoint1(2,2), 0.1,
-        0.0,        0.0,        0.0,        1.0;
-
-    Eigen::Matrix3d R_waypoint2 =
-        (Eigen::AngleAxisd(M_PI, Eigen::Vector3d::UnitZ()) *
-         Eigen::AngleAxisd(M_PI, Eigen::Vector3d::UnitX())).toRotationMatrix();
-    Eigen::Matrix4d T_waypoint2;
-    T_waypoint2 <<
-        R_waypoint2(0,0), R_waypoint2(0,1), R_waypoint2(0,2), 0.2,
-        R_waypoint2(1,0), R_waypoint2(1,1), R_waypoint2(1,2), 0.2,
-        R_waypoint2(2,0), R_waypoint2(2,1), R_waypoint2(2,2), 0.2,
-        0.0,        0.0,        0.0,        1.0;
-
-    Eigen::Matrix4d T_goal;
-    T_goal <<
-        cube_R(0,0), cube_R(0,1), cube_R(0,2), 0.3,
-        cube_R(1,0), cube_R(1,1), cube_R(1,2), 0.3,
-        cube_R(2,0), cube_R(2,1), cube_R(2,2), 0.3,
+        -cube_R(0,0), -cube_R(0,1), cube_R(0,2), 0.30,
+        -cube_R(1,0), -cube_R(1,1), cube_R(1,2), 0.00,
+        -cube_R(2,0), -cube_R(2,1), cube_R(2,2), 0.70,
         0.0,         0.0,         0.0,         1.0;
 
+    // Waypoint 2: Detour around obstacle (right side, x=0.45 > 0.44)
+    // Position: (0.45, 0.10, 0.70) | Rotation: Keep cube's orientation
+    Eigen::Matrix4d T_waypoint2;
+    T_waypoint2 <<
+        cube_R(0,0), cube_R(0,1), cube_R(0,2), 0.45,
+        cube_R(1,0), cube_R(1,1), cube_R(1,2), 0.00,
+        cube_R(2,0), cube_R(2,1), cube_R(2,2), 0.70,
+        0.0,         0.0,         0.0,         1.0;
+
+    // Waypoint 3: Above the target cube (z=0.70 > cube's z=0.60)
+    // Position: (0.55, 0.20, 0.70) | Rotation: Exact cube orientation
+    Eigen::Matrix4d T_waypoint3;
+    T_waypoint3 <<
+        cube_R(0,0), cube_R(0,1), cube_R(0,2), 0.55,
+        cube_R(1,0), cube_R(1,1), cube_R(1,2), 0.20,
+        cube_R(2,0), cube_R(2,1), cube_R(2,2), 0.50,
+        0.0,         0.0,         0.0,         1.0;
+
+    // Waypoint 4 (Goal): Exact cube position (gripping pose)
+    // Position: (0.55, 0.20, 0.60) | Rotation: Exact cube orientation
+    Eigen::Matrix4d T_goal;
+    T_goal <<
+        cube_R(0,0), cube_R(0,1), cube_R(0,2), 0.55,
+        cube_R(1,0), cube_R(1,1), cube_R(1,2), 0.20,
+        cube_R(2,0), cube_R(2,1), cube_R(2,2), 0.60,
+        0.0,         0.0,         0.0,         1.0;
+    // ------------------------------------------------------------------------
+
+    // Add all waypoints to the path
     T_waypoints.push_back(T_waypoint1);
     T_waypoints.push_back(T_waypoint2);
+    T_waypoints.push_back(T_waypoint3);
     T_waypoints.push_back(T_goal);
 
     // Visualize waypoint frames
